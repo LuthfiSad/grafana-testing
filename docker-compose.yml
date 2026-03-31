@@ -1,0 +1,65 @@
+services:
+  app:
+    build: .
+    container_name: retail_analytics_app
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=db
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_NAME=analytics_db
+      - DB_PORT=5432
+      - PORT=8080
+      - SEEDER_CUSTOMER_COUNT=2000
+      - SEEDER_PRODUCT_COUNT=1000
+      - SEEDER_ORDER_COUNT=25000
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - analytics_net
+
+  db:
+    image: postgres:15-alpine
+    container_name: analytics_db
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=analytics_db
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d analytics_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - analytics_net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - analytics_net
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - analytics_net
+
+networks:
+  analytics_net:
+    driver: bridge
