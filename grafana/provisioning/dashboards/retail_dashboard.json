@@ -6,110 +6,154 @@
   "id": null,
   "links": [],
   "liveNow": false,
+  "time": {
+    "from": "now-6M",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "allValue": null,
+        "current": { "selected": true, "text": [ "All" ], "value": [ "$__all" ] },
+        "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+        "definition": "SELECT DISTINCT location FROM stores;",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "location",
+        "options": [],
+        "query": "SELECT DISTINCT location FROM stores;",
+        "refresh": 1,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": null,
+        "current": { "selected": true, "text": [ "All" ], "value": [ "$__all" ] },
+        "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+        "definition": "SELECT DISTINCT segment FROM customers;",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "segment",
+        "options": [],
+        "query": "SELECT DISTINCT segment FROM customers;",
+        "refresh": 1,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
   "panels": [
-    { "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "title": "💵 1. FINANCE & REVENUE INTELLIGENCE", "type": "row" },
+    { "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "title": "💵 1. EXECUTIVE SUMMARY (FILTERABLE)", "type": "row" },
     {
       "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-      "gridPos": { "h": 5, "w": 5, "x": 0, "y": 1 },
+      "gridPos": { "h": 5, "w": 4, "x": 0, "y": 1 },
       "id": 1,
       "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "value" },
       "title": "Gross Revenue",
       "type": "stat",
-      "targets": [{ "format": "table", "rawSql": "SELECT COALESCE(SUM(final_price),0) FROM orders", "refId": "A" }]
+      "targets": [{ "format": "table", "rawSql": "SELECT COALESCE(SUM(o.final_price),0) FROM orders o JOIN stores s ON o.store_id = s.id JOIN customers c ON o.customer_id = c.id WHERE s.location IN ($location) AND c.segment IN ($segment)", "refId": "A" }]
     },
     {
       "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-      "gridPos": { "h": 5, "w": 5, "x": 5, "y": 1 },
+      "gridPos": { "h": 5, "w": 4, "x": 4, "y": 1 },
       "id": 2,
-      "title": "Taxes Collected",
+      "title": "Total Orders Placed",
       "type": "stat",
-      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["sum"] } },
-      "targets": [{ "format": "table", "rawSql": "SELECT COALESCE(SUM(tax_amount),0) FROM orders", "refId": "A" }]
+      "targets": [{ "format": "table", "rawSql": "SELECT COUNT(o.id) FROM orders o JOIN stores s ON o.store_id = s.id JOIN customers c ON o.customer_id = c.id WHERE s.location IN ($location) AND c.segment IN ($segment)", "refId": "A" }]
     },
     {
       "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-      "gridPos": { "h": 5, "w": 5, "x": 10, "y": 1 },
+      "gridPos": { "h": 5, "w": 5, "x": 8, "y": 1 },
       "id": 11,
-      "title": "Total Amount Refunded",
-      "type": "stat",
-      "targets": [{ "format": "table", "rawSql": "SELECT COALESCE(SUM(amount),0) FROM refunds", "refId": "A" }]
+      "title": "Refund Rate (%)",
+      "type": "gauge",
+      "fieldConfig": { "defaults": { "max": 100, "min": 0, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": 0 }, { "color": "red", "value": 15 }] } } },
+      "targets": [{ "format": "table", "rawSql": "SELECT (COUNT(r.id)::float / NULLIF(COUNT(o.id),0)::float)*100 FROM orders o LEFT JOIN refunds r ON o.id = r.order_id JOIN stores s ON o.store_id = s.id WHERE s.location IN ($location)", "refId": "A" }]
     },
     {
        "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-       "gridPos": { "h": 5, "w": 9, "x": 15, "y": 1 },
+       "gridPos": { "h": 5, "w": 11, "x": 13, "y": 1 },
        "id": 3,
-       "title": "Store Revenue Heatmap (City)",
+       "title": "Revenue Contribution by Region",
        "type": "bargauge",
-       "targets": [{ "format": "table", "rawSql": "SELECT s.location as metric, SUM(o.final_price) as value FROM orders o JOIN stores s ON o.store_id = s.id GROUP BY s.location", "refId": "A" }]
+       "options": { "orientation": "horizontal" },
+       "targets": [{ "format": "table", "rawSql": "SELECT s.location as metric, SUM(o.final_price) as value FROM orders o JOIN stores s ON o.store_id = s.id WHERE s.location IN ($location) GROUP BY s.location ORDER BY value DESC", "refId": "A" }]
     },
     
-    { "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 }, "title": "🚚 2. LOGISTICS, REFUNDS & PROMOTIONS", "type": "row" },
+    { "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 }, "title": "📈 2. TIME-SERIES FORECASTING & BEHAVIOR", "type": "row" },
     {
       "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 7 },
+      "gridPos": { "h": 9, "w": 16, "x": 0, "y": 7 },
+      "id": 12,
+      "title": "Daily Revenue Trend (Time Series)",
+      "type": "timeseries",
+      "options": { "tooltip": { "mode": "multi" } },
+      "targets": [{
+        "format": "time_series",
+        "rawSql": "SELECT $__timeGroupAlias(o.order_date, '1d'), SUM(o.final_price) AS \"Revenue\" FROM orders o JOIN stores s ON o.store_id = s.id WHERE $__timeFilter(o.order_date) AND s.location IN ($location) GROUP BY 1 ORDER BY 1",
+        "refId": "A"
+      }]
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 7 },
+      "id": 13,
+      "title": "Sales by Customer Segment",
+      "type": "piechart",
+      "options": { "pieType": "donut" },
+      "targets": [{ "format": "table", "rawSql": "SELECT c.segment as metric, SUM(o.final_price) as value FROM orders o JOIN customers c ON o.customer_id = c.id WHERE c.segment IN ($segment) GROUP BY c.segment", "refId": "A" }]
+    },
+
+    { "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 }, "title": "📦 3. DEEP LOGISTICS & PRODUCT ASSORTMENT", "type": "row" },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 17 },
+      "id": 8,
+      "title": "Top Categories by Volume",
+      "type": "barchart",
+      "targets": [{ "format": "table", "rawSql": "SELECT p.category, SUM(oi.quantity) as sold FROM order_items oi JOIN products p ON oi.product_id = p.id JOIN orders o ON oi.order_id = o.id JOIN stores s ON o.store_id = s.id WHERE s.location IN ($location) GROUP BY p.category ORDER BY sold DESC LIMIT 10", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 17 },
       "id": 4,
       "title": "Refund Reasons Analysis",
       "type": "piechart",
-      "targets": [{ "format": "table", "rawSql": "SELECT reason as metric, COUNT(id) as value FROM refunds GROUP BY reason", "refId": "A" }]
+      "targets": [{ "format": "table", "rawSql": "SELECT r.reason as metric, COUNT(r.id) as value FROM refunds r JOIN orders o ON r.order_id = o.id JOIN stores s ON o.store_id = s.id WHERE s.location IN ($location) GROUP BY r.reason", "refId": "A" }]
     },
     {
        "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 7 },
+       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 17 },
        "id": 5,
-       "title": "Carrier Latency Performance (Avg Days)",
-       "type": "barchart",
-       "targets": [{ "format": "table", "rawSql": "SELECT carrier as name, AVG(estimated_days) as value FROM shippings GROUP BY carrier", "refId": "A" }]
-    },
-    {
-      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 7 },
-      "id": 6,
-      "title": "Promotion Campaign Reach",
-      "type": "piechart",
-      "targets": [{ "format": "table", "rawSql": "SELECT COALESCE(p.code, 'No Promo') as metric, COUNT(o.id) as value FROM orders o LEFT JOIN promotions p ON o.promotion_id = p.id GROUP BY p.code", "refId": "A" }]
+       "title": "Carrier Latency vs Cost",
+       "type": "table",
+       "targets": [{ "format": "table", "rawSql": "SELECT carrier, AVG(estimated_days) as avg_days, AVG(shipping_cost) as avg_cost FROM shippings GROUP BY carrier ORDER BY avg_days ASC", "refId": "A" }]
     },
 
-    { "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 }, "title": "🏢 3. STAFF & PRODUCT PERFORMANCE", "type": "row" },
+    { "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 }, "title": "👑 4. STAFF PERFORMANCE & AUDIT LOGS", "type": "row" },
     {
       "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "gridPos": { "h": 8, "w": 10, "x": 0, "y": 26 },
       "id": 7,
       "title": "Top Performing Staff (Revenue Generators)",
       "type": "barchart",
       "options": { "orientation": "horizontal" },
-      "targets": [{ "format": "table", "rawSql": "SELECT st.name, SUM(o.final_price) as value FROM orders o JOIN staffs st ON o.staff_referral = st.id GROUP BY st.name ORDER BY value DESC LIMIT 10", "refId": "A" }]
+      "targets": [{ "format": "table", "rawSql": "SELECT st.name, SUM(o.final_price) as value FROM orders o JOIN staffs st ON o.staff_referral = st.id JOIN stores s ON o.store_id = s.id WHERE s.location IN ($location) GROUP BY st.name ORDER BY value DESC LIMIT 10", "refId": "A" }]
     },
-    {
-      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
-      "id": 8,
-      "title": "Best Selling Products",
-      "type": "table",
-      "targets": [{ "format": "table", "rawSql": "SELECT p.name, p.category, SUM(oi.quantity) as sold FROM order_items oi JOIN products p ON oi.product_id = p.id GROUP BY p.id ORDER BY sold DESC LIMIT 10", "refId": "A" }]
-    },
-    
-    { "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 }, "title": "👑 4. CUSTOMER LOYALTY & SENTIMENT", "type": "row" },
     {
        "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-       "gridPos": { "h": 7, "w": 16, "x": 0, "y": 25 },
+       "gridPos": { "h": 8, "w": 14, "x": 10, "y": 26 },
        "id": 9,
-       "title": "VIP Customers Deep Report",
+       "title": "Live Enterprise Audit Log (Complex Multi-Join)",
        "type": "table",
-       "targets": [{ "format": "table", "rawSql": "SELECT name, email, country, loyalty_points FROM customers WHERE segment='VIP' ORDER BY loyalty_points DESC LIMIT 20", "refId": "A" }]
-    },
-    {
-      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 25 },
-      "id": 10,
-      "title": "Customer Reviews Sentiment (Average Rating)",
-      "type": "gauge",
-      "fieldConfig": { "defaults": { "max": 5, "min": 0 } },
-      "targets": [{ "format": "table", "rawSql": "SELECT COALESCE(AVG(rating),0) FROM reviews", "refId": "A" }]
+       "targets": [{ "format": "table", "rawSql": "SELECT o.id as \"OrderID\", c.name as \"Client\", c.segment as \"Tier\", s.location as \"Hub\", st.name as \"Handler\", COALESCE(pr.code, 'NONE') as \"Promo\", o.final_price as \"Total $\", o.status FROM orders o JOIN customers c ON o.customer_id = c.id JOIN stores s ON o.store_id = s.id JOIN staffs st ON o.staff_referral = st.id LEFT JOIN promotions pr ON o.promotion_id = pr.id WHERE s.location IN ($location) AND c.segment IN ($segment) ORDER BY o.order_date DESC LIMIT 50", "refId": "A" }]
     }
   ],
   "schemaVersion": 37,
   "style": "dark",
-  "title": "Enterprise Retail Mega-Intelligence (15+ Models)",
+  "title": "The Absolute Global Commerce (ULTIMATE)",
   "uid": "retail-dashboard-mega",
   "version": 1
 }

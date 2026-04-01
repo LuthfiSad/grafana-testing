@@ -116,7 +116,13 @@ func SeedDatabase(db *gorm.DB, cfg Config) error {
 			status := "PAID"
 			if rand.Float64() < 0.05 { status = "REFUNDED" }
 
-			orderDate := time.Now().AddDate(0, 0, -1 - rand.Intn(180))
+			// Make 20% of orders happen within the last 24 hours (for "Last 6 hours" default Grafana views)
+			var orderDate time.Time
+			if rand.Float64() < 0.2 {
+				orderDate = time.Now().Add(-time.Duration(rand.Intn(24)) * time.Hour)
+			} else {
+				orderDate = time.Now().AddDate(0, 0, -1 - rand.Intn(180))
+			}
 
 			order := models.Order{
 				CustomerID:    cust.ID,
