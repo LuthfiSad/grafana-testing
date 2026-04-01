@@ -26,7 +26,7 @@ func InitDB() (*gorm.DB, error) {
 	var err error
 	for i := 0; i < 10; i++ {
 		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-			Logger: logger.Default.LogMode(logger.Info),
+			Logger: logger.Default.LogMode(logger.Warn), // Warn to reduce spam logs on massive insert
 		})
 		if err == nil { break }
 		time.Sleep(3 * time.Second)
@@ -34,16 +34,21 @@ func InitDB() (*gorm.DB, error) {
 
 	if err != nil { return nil, err }
 
-	log.Println("Migrating Enterprise Retail Schema...")
+	log.Println("Migrating Comprehensive Enterprise Schema (13+ Tables)...")
 	err = db.AutoMigrate(
 		&models.Store{},
 		&models.Staff{},
 		&models.Promotion{},
 		&models.Product{},
+		&models.Attribute{},
+		&models.InventoryLog{},
 		&models.Customer{},
 		&models.Order{},
 		&models.OrderItem{},
 		&models.Review{},
+		&models.Payment{},
+		&models.Shipping{},
+		&models.Refund{},
 	)
 	return db, err
 }

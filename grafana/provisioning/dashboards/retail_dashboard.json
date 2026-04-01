@@ -7,92 +7,109 @@
   "links": [],
   "liveNow": false,
   "panels": [
+    { "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "title": "💵 1. FINANCE & REVENUE INTELLIGENCE", "type": "row" },
     {
       "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-      "fieldConfig": {
-        "defaults": { "color": { "mode": "thresholds" }, "unit": "currencyUSD" }
-      },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "gridPos": { "h": 5, "w": 5, "x": 0, "y": 1 },
       "id": 1,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "reduceOptions": { "calcs": ["sum"] }
-      },
-      "title": "Total Revenue (Net)",
+      "options": { "reduceOptions": { "calcs": ["sum"] }, "colorMode": "value" },
+      "title": "Gross Revenue",
       "type": "stat",
-      "targets": [{ "format": "table", "rawSql": "SELECT final_price FROM orders", "refId": "A" }]
+      "targets": [{ "format": "table", "rawSql": "SELECT COALESCE(SUM(final_price),0) FROM orders", "refId": "A" }]
     },
     {
       "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "gridPos": { "h": 5, "w": 5, "x": 5, "y": 1 },
       "id": 2,
-      "title": "Sales Performance by Store Location",
-      "type": "barchart",
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
-      "targets": [{ 
-        "format": "table", 
-        "rawSql": "SELECT s.location, SUM(o.final_price) as value FROM orders o JOIN stores s ON o.store_id = s.id GROUP BY s.location", 
-        "refId": "A" 
-      }]
+      "title": "Taxes Collected",
+      "type": "stat",
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["sum"] } },
+      "targets": [{ "format": "table", "rawSql": "SELECT COALESCE(SUM(tax_amount),0) FROM orders", "refId": "A" }]
     },
     {
       "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
-      "id": 3,
-      "title": "Staff Sales Ranking (Top 10)",
+      "gridPos": { "h": 5, "w": 5, "x": 10, "y": 1 },
+      "id": 11,
+      "title": "Total Amount Refunded",
+      "type": "stat",
+      "targets": [{ "format": "table", "rawSql": "SELECT COALESCE(SUM(amount),0) FROM refunds", "refId": "A" }]
+    },
+    {
+       "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+       "gridPos": { "h": 5, "w": 9, "x": 15, "y": 1 },
+       "id": 3,
+       "title": "Store Revenue Heatmap (City)",
+       "type": "bargauge",
+       "targets": [{ "format": "table", "rawSql": "SELECT s.location as metric, SUM(o.final_price) as value FROM orders o JOIN stores s ON o.store_id = s.id GROUP BY s.location", "refId": "A" }]
+    },
+    
+    { "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 }, "title": "🚚 2. LOGISTICS, REFUNDS & PROMOTIONS", "type": "row" },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 7 },
+      "id": 4,
+      "title": "Refund Reasons Analysis",
+      "type": "piechart",
+      "targets": [{ "format": "table", "rawSql": "SELECT reason as metric, COUNT(id) as value FROM refunds GROUP BY reason", "refId": "A" }]
+    },
+    {
+       "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 7 },
+       "id": 5,
+       "title": "Carrier Latency Performance (Avg Days)",
+       "type": "barchart",
+       "targets": [{ "format": "table", "rawSql": "SELECT carrier as name, AVG(estimated_days) as value FROM shippings GROUP BY carrier", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 7 },
+      "id": 6,
+      "title": "Promotion Campaign Reach",
+      "type": "piechart",
+      "targets": [{ "format": "table", "rawSql": "SELECT COALESCE(p.code, 'No Promo') as metric, COUNT(o.id) as value FROM orders o LEFT JOIN promotions p ON o.promotion_id = p.id GROUP BY p.code", "refId": "A" }]
+    },
+
+    { "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 }, "title": "🏢 3. STAFF & PRODUCT PERFORMANCE", "type": "row" },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "id": 7,
+      "title": "Top Performing Staff (Revenue Generators)",
       "type": "barchart",
       "options": { "orientation": "horizontal" },
-      "targets": [{ 
-        "format": "table", 
-        "rawSql": "SELECT st.name, SUM(o.final_price) as value FROM orders o JOIN staffs st ON o.staff_referral = st.id GROUP BY st.name ORDER BY value DESC LIMIT 10", 
-        "refId": "A" 
-      }]
+      "targets": [{ "format": "table", "rawSql": "SELECT st.name, SUM(o.final_price) as value FROM orders o JOIN staffs st ON o.staff_referral = st.id GROUP BY st.name ORDER BY value DESC LIMIT 10", "refId": "A" }]
     },
     {
       "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 12 },
-      "id": 4,
-      "title": "Promotion Effectiveness (Discount Usage)",
-      "type": "piechart",
-      "targets": [{ 
-        "format": "table", 
-        "rawSql": "SELECT p.code as metric, COUNT(o.id) as value FROM orders o JOIN promotions p ON o.promotion_id = p.id GROUP BY p.code", 
-        "refId": "A" 
-      }]
-    },
-    {
-      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 12 },
-      "id": 5,
-      "title": "Customer Reviews Sentiment (Avg Rating)",
-      "type": "gauge",
-      "fieldConfig": {
-        "defaults": { "max": 5, "min": 0, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": 0 }, { "color": "green", "value": 4 }] } }
-      },
-      "targets": [{ 
-        "format": "table", 
-        "rawSql": "SELECT AVG(rating) FROM reviews", 
-        "refId": "A" 
-      }]
-    },
-    {
-      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 18 },
-      "id": 6,
-      "title": "Deep Audit Log (Complex Query)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "id": 8,
+      "title": "Best Selling Products",
       "type": "table",
-      "targets": [{ 
-        "format": "table", 
-        "rawSql": "SELECT o.id, c.name as customer, s.location, st.name as staff, pr.code as promo, o.final_price FROM orders o JOIN customers c ON o.customer_id = c.id JOIN stores s ON o.store_id = s.id JOIN staffs st ON o.staff_referral = st.id LEFT JOIN promotions pr ON o.promotion_id = pr.id ORDER BY o.id DESC LIMIT 100", 
-        "refId": "A" 
-      }]
+      "targets": [{ "format": "table", "rawSql": "SELECT p.name, p.category, SUM(oi.quantity) as sold FROM order_items oi JOIN products p ON oi.product_id = p.id GROUP BY p.id ORDER BY sold DESC LIMIT 10", "refId": "A" }]
+    },
+    
+    { "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 }, "title": "👑 4. CUSTOMER LOYALTY & SENTIMENT", "type": "row" },
+    {
+       "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+       "gridPos": { "h": 7, "w": 16, "x": 0, "y": 25 },
+       "id": 9,
+       "title": "VIP Customers Deep Report",
+       "type": "table",
+       "targets": [{ "format": "table", "rawSql": "SELECT name, email, country, loyalty_points FROM customers WHERE segment='VIP' ORDER BY loyalty_points DESC LIMIT 20", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 25 },
+      "id": 10,
+      "title": "Customer Reviews Sentiment (Average Rating)",
+      "type": "gauge",
+      "fieldConfig": { "defaults": { "max": 5, "min": 0 } },
+      "targets": [{ "format": "table", "rawSql": "SELECT COALESCE(AVG(rating),0) FROM reviews", "refId": "A" }]
     }
   ],
   "schemaVersion": 37,
   "style": "dark",
-  "title": "Enterprise Retail Intelligence (Mega-Complexity)",
+  "title": "Enterprise Retail Mega-Intelligence (15+ Models)",
   "uid": "retail-dashboard-mega",
   "version": 1
 }

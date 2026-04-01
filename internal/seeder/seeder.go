@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"time"
+
 	"github.com/user/grafana-analytics-app/internal/models"
 	"gorm.io/gorm"
 )
@@ -16,106 +17,152 @@ type Config struct {
 }
 
 func SeedDatabase(db *gorm.DB, cfg Config) error {
-	log.Println("--- Seeding ENTERPRISE RETAIL DATA (MASSIVE) ---")
+	log.Println("--- Seeding COMPREHENSIVE ENTERPRISE DATA ---")
 
-	// 1. Seed Stores
 	locations := []string{"Jakarta", "Surabaya", "Bandung", "Medan", "Bali"}
 	var stores []models.Store
 	for _, loc := range locations {
-		s := models.Store{Name: "Store " + loc, Location: loc}
+		tax := 0.11
+		if loc == "Bali" { tax = 0.15 } // Higher tax in Bali
+		s := models.Store{Name: "Store " + loc, Location: loc, TaxRate: tax}
 		db.Create(&s)
 		stores = append(stores, s)
 	}
 
-	// 2. Seed Staff per Store
 	roles := []string{"Sales", "Cashier", "Manager"}
-	var allStaff []models.Staff
+	var staffs []models.Staff
 	for _, store := range stores {
-		for i := 0; i < 10; i++ {
-			s := models.Staff{
+		for i := 0; i < 5; i++ {
+			st := models.Staff{
 				StoreID: store.ID,
 				Name:    fmt.Sprintf("Staff %s-%d", store.Location, i),
 				Role:    roles[rand.Intn(len(roles))],
 			}
-			db.Create(&s)
-			allStaff = append(allStaff, s)
+			db.Create(&st)
+			staffs = append(staffs, st)
 		}
 	}
 
-	// 3. Seed Promotions
 	promos := []models.Promotion{
-		{Code: "SALE20", Discount: 20.0, ValidUntil: time.Now().AddDate(0, 1, 0)},
-		{Code: "VIP50", Discount: 50.0, ValidUntil: time.Now().AddDate(0, 1, 0)},
-		{Code: "FLASH10", Discount: 10.0, ValidUntil: time.Now().AddDate(0, 1, 0)},
+		{Code: "MEGA20", Discount: 20.0, ValidUntil: time.Now().AddDate(0, 1, 0)},
+		{Code: "NEWYEAR50", Discount: 50.0, ValidUntil: time.Now().AddDate(0, 1, 0)},
 	}
 	for i := range promos { db.Create(&promos[i]) }
 
-	// 4. Products & Customers (Reuse)
 	var products []models.Product
+	cats := []string{"Electronics", "Fashion", "Home", "Sports"}
 	for i := 0; i < cfg.ProductCount; i++ {
-		p := models.Product{Name: fmt.Sprintf("Prop %d", i), Price: 50 + rand.Float64()*950, Cost: 10 + rand.Float64()*40, Quantity: 100 + rand.Intn(1000)}
+		p := models.Product{
+			Name:     fmt.Sprintf("SKU-%d", i),
+			Category: cats[rand.Intn(len(cats))],
+			Price:    50 + rand.Float64()*950,
+			Cost:     10 + rand.Float64()*40,
+			Stock:    100 + rand.Intn(1000),
+		}
 		db.Create(&p)
+		
+		// Attributes & Logs
+		db.Create(&models.Attribute{ProductID: p.ID, Key: "Condition", Value: "New"})
+		db.Create(&models.InventoryLog{ProductID: p.ID, Change: p.Stock, Reason: "Initial Stock", CreatedAt: time.Now()})
+		
 		products = append(products, p)
 	}
 
 	var customers []models.Customer
 	segments := []string{"VIP", "Regular", "New"}
-	countries := []string{"Indonesia", "USA", "Germany", "Japan", "Brazil"}
+	countries := []string{"Indonesia", "USA", "Germany", "Japan"}
 	for i := 0; i < cfg.CustomerCount; i++ {
-		c := models.Customer{Name: fmt.Sprintf("Cust %d", i), Email: fmt.Sprintf("c%d%d@mail.com", i, time.Now().UnixNano()), Segment: segments[rand.Intn(len(segments))], Country: countries[rand.Intn(len(countries))]}
+		c := models.Customer{
+			Name:          fmt.Sprintf("Cust %d", i),
+			Email:         fmt.Sprintf("c%d%d@mail.com", i, time.Now().UnixNano()),
+			Segment:       segments[rand.Intn(len(segments))],
+			Country:       countries[rand.Intn(len(countries))],
+			LoyaltyPoints: rand.Intn(1000),
+			CreatedAt:     time.Now().AddDate(0, -rand.Intn(12), -rand.Intn(30)),
+		}
 		db.Create(&c)
 		customers = append(customers, c)
 	}
 
-	// 5. SEED ORDERS (10k+)
-	log.Printf("Seeding %d Enterprise Orders...", cfg.OrderCount)
-	for i := 0; i < cfg.OrderCount; i++ {
-		cust := customers[rand.Intn(len(customers))]
-		store := stores[rand.Intn(len(stores))]
-		staff := allStaff[rand.Intn(len(allStaff))]
-		
-		var promoID *uint
-		discount := 0.0
-		if rand.Float64() < 0.3 {
-			p := promos[rand.Intn(len(promos))]
-			promoID = &p.ID
-			discount = p.Discount
-		}
+	log.Printf("Commencing Massive Batch Order Insert (%d)...", cfg.OrderCount)
+	batchSize := 500
+	for i := 0; i < cfg.OrderCount; i += batchSize {
+		for j := 0; j < batchSize; j++ {
+			if i+j >= cfg.OrderCount { break }
 
-		order := models.Order{
-			CustomerID:    cust.ID,
-			StoreID:       store.ID,
-			StaffReferral: staff.ID,
-			PromotionID:   promoID,
-			Status:        "PAID",
-			OrderDate:     time.Now().AddDate(0, 0, -rand.Intn(90)),
-		}
-		db.Create(&order)
-
-		// Items & Calculation
-		totalPr := 0.0
-		for j := 0; j < 1+rand.Intn(4); j++ {
-			p := products[rand.Intn(len(products))]
-			qty := 1 + rand.Intn(3)
-			item := models.OrderItem{OrderID: order.ID, ProductID: p.ID, Quantity: qty, UnitPrice: p.Price}
-			db.Create(&item)
-			totalPr += (p.Price * float64(qty))
-		}
-		finalPr := totalPr * (1 - (discount / 100))
-		db.Model(&order).Updates(map[string]interface{}{"total_price": totalPr, "final_price": finalPr})
-
-		// 6. Seed Reviews (30% customers leave review)
-		if rand.Float64() < 0.3 {
-			rev := models.Review{
-				ProductID:  products[rand.Intn(len(products))].ID,
-				CustomerID: cust.ID,
-				Rating:     1 + rand.Intn(5),
-				Comment:    "Good product!",
+			cust := customers[rand.Intn(len(customers))]
+			store := stores[rand.Intn(len(stores))]
+			staff := staffs[rand.Intn(len(staffs))]
+			
+			var promoID *uint
+			discountRate := 0.0
+			if rand.Float64() < 0.2 { // 20% use promos
+				p := promos[rand.Intn(len(promos))]
+				promoID = &p.ID
+				discountRate = p.Discount
 			}
-			db.Create(&rev)
+
+			subtotal := 0.0
+			orderedProducts := make([]models.Product, 1+rand.Intn(3))
+			for k := range orderedProducts {
+				p := products[rand.Intn(len(products))]
+				orderedProducts[k] = p
+				subtotal += p.Price
+			}
+
+			taxAmount := subtotal * store.TaxRate
+			finalPrice := (subtotal - (subtotal * discountRate / 100)) + taxAmount
+
+			status := "PAID"
+			if rand.Float64() < 0.05 { status = "REFUNDED" }
+
+			orderDate := time.Now().AddDate(0, 0, -1 - rand.Intn(180))
+
+			order := models.Order{
+				CustomerID:    cust.ID,
+				StoreID:       store.ID,
+				StaffReferral: staff.ID,
+				PromotionID:   promoID,
+				Status:        status,
+				SubTotal:      subtotal,
+				TaxAmount:     taxAmount,
+				FinalPrice:    finalPrice,
+				OrderDate:     orderDate,
+			}
+			db.Create(&order)
+
+			// Items
+			for _, p := range orderedProducts {
+				db.Create(&models.OrderItem{OrderID: order.ID, ProductID: p.ID, Quantity: 1, UnitPrice: p.Price})
+			}
+
+			// Payment
+			db.Create(&models.Payment{OrderID: order.ID, Method: "Gateway", Status: "SUCCESS", PaidAt: orderDate})
+
+			// Shipping
+			carrier := []string{"FastEx", "SlowPost", "EagleDelivery"}[rand.Intn(3)]
+			db.Create(&models.Shipping{OrderID: order.ID, Carrier: carrier, ShippingCost: 15.0, EstimatedDays: 1+rand.Intn(5)})
+
+			// Refund
+			if status == "REFUNDED" {
+				reason := []string{"Broken Item", "Late Delivery", "Changed Mind"}[rand.Intn(3)]
+				db.Create(&models.Refund{OrderID: order.ID, Amount: finalPrice * 0.5, Reason: reason, CreatedAt: orderDate})
+			}
+			
+			// Customer Review
+			if rand.Float64() < 0.1 { // 10% leave review
+				db.Create(&models.Review{
+					ProductID:  orderedProducts[0].ID,
+					CustomerID: cust.ID,
+					Rating:     1 + rand.Intn(5),
+					Comment:    "Verified Purchase",
+					CreatedAt:  orderDate.AddDate(0, 0, 5),
+				})
+			}
 		}
+		log.Printf("Progress: %d executed...", i)
 	}
 
-	log.Println("--- Enterprise Seeding COMPLETED! ---")
+	log.Println("--- COMPREHENSIVE SEEDING COMPLETED! ---")
 	return nil
 }

@@ -8,6 +8,7 @@ datasources:
     isDefault: true
 
   - name: PostgreSQL
+    uid: PostgreSQL
     type: postgres
     url: db:5432
     user: user

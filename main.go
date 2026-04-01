@@ -38,8 +38,7 @@ func main() {
     // 2. Seeding Strategy (Always Refresh for Testing)
     log.Println("Force Refreshing Database for Massive Testing...")
     
-    // Wipe some tables to trigger clean seeder
-    db.Exec("TRUNCATE TABLE IF EXISTS orders, order_items, reviews, customers, products, promotions, staffs, stores CASCADE")
+    db.Exec("TRUNCATE TABLE orders, order_items, reviews, customers, products, promotions, staffs, stores, attributes, inventory_logs, refunds, shippings, payments CASCADE")
 
     ccount, _ := strconv.Atoi(os.Getenv("SEEDER_CUSTOMER_COUNT"))
     pcount, _ := strconv.Atoi(os.Getenv("SEEDER_PRODUCT_COUNT"))
