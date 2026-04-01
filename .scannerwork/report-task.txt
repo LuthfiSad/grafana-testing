@@ -1,0 +1,6 @@
+projectKey=grafana
+serverUrl=http://localhost:9000
+serverVersion=26.3.0.120487
+dashboardUrl=http://localhost:9000/dashboard?id=grafana
+ceTaskId=7246d853-2d1d-4fc8-82ab-b5028d0ce9f3
+ceTaskUrl=http://localhost:9000/api/ce/task?id=7246d853-2d1d-4fc8-82ab-b5028d0ce9f3

@@ -60,6 +60,14 @@ services:
     networks:
       - analytics_net
 
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube
+    ports:
+      - "9000:9000"
+    networks:
+      - analytics_net
+
 networks:
   analytics_net:
     driver: bridge
